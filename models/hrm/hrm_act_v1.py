@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from models.common import trunc_normal_init_
 from models.layers import rms_norm, SwiGLU, Attention, RotaryEmbedding, CosSin, CastedEmbedding, CastedLinear
 from models.sparse_embedding import CastedSparseEmbedding
+from models.riemannformer import RiemannFormerAttention # import RiemannFormerAttention - 
 
 
 @dataclass
@@ -61,11 +62,19 @@ class HierarchicalReasoningModel_ACTV1Block(nn.Module):
     def __init__(self, config: HierarchicalReasoningModel_ACTV1Config) -> None:
         super().__init__()
 
-        self.self_attn = Attention(
+        # self.self_attn = Attention(
+        #     hidden_size=config.hidden_size,
+        #     head_dim=config.hidden_size // config.num_heads,
+        #     num_heads=config.num_heads,
+        #     num_key_value_heads=config.num_heads,
+        #     causal=False
+        # )
+        self.self_attn = RiemannFormerAttention(
             hidden_size=config.hidden_size,
             head_dim=config.hidden_size // config.num_heads,
             num_heads=config.num_heads,
             num_key_value_heads=config.num_heads,
+            locality_focusing=True,
             causal=False
         )
         self.mlp = SwiGLU(
@@ -74,14 +83,31 @@ class HierarchicalReasoningModel_ACTV1Block(nn.Module):
         )
         self.norm_eps = config.rms_norm_eps
 
-    def forward(self, cos_sin: CosSin, hidden_states: torch.Tensor) -> torch.Tensor:
-        # Post Norm
-        # Self Attention
-        hidden_states = rms_norm(hidden_states + self.self_attn(cos_sin=cos_sin, hidden_states=hidden_states), variance_epsilon=self.norm_eps)
-        # Fully Connected
-        hidden_states = rms_norm(hidden_states + self.mlp(hidden_states), variance_epsilon=self.norm_eps)
-        return hidden_states
+    # def forward(self, cos_sin: CosSin, hidden_states: torch.Tensor) -> torch.Tensor:
+    #     # Post Norm
+    #     # Self Attention
+    #     hidden_states = rms_norm(hidden_states + self.self_attn(cos_sin=cos_sin, hidden_states=hidden_states), variance_epsilon=self.norm_eps)
+    #     # Fully Connected
+    #     hidden_states = rms_norm(hidden_states + self.mlp(hidden_states), variance_epsilon=self.norm_eps)
+    #     return hidden_states
 
+    def forward(self, cos_sin: CosSin, hidden_states: torch.Tensor) -> torch.Tensor:
+            positions = torch.arange(hidden_states.size(1), device=hidden_states.device)
+            attn_out = self.self_attn(x=hidden_states, positions=positions)
+            # Post Norm
+            # Self Attention
+            # Replace in patch
+            hidden_states = rms_norm(
+                hidden_states + attn_out,
+                variance_epsilon=self.norm_eps
+            )
+            # Fully Connected
+            hidden_states = rms_norm(
+                hidden_states + self.mlp(hidden_states),
+                variance_epsilon=self.norm_eps
+            )
+
+            return hidden_states
 
 class HierarchicalReasoningModel_ACTV1ReasoningModule(nn.Module):
     def __init__(self, layers: List[HierarchicalReasoningModel_ACTV1Block]):
