@@ -59,14 +59,17 @@ class RiemannFormerAttention(nn.Module):
         x: (B, L, D)
         positions: (L,) token positions (ints), optional
         """
+        #cast input to float32 - ajay
+        x = x.to(self.q_proj.weight.dtype)
+        
         B, L, D = x.shape
         H, d = self.num_heads, self.head_dim
-        print("1")
+        print("ajay 1")
         # Q, K, V projections
         Q = self.q_proj(x).view(B, L, H, d).transpose(1, 2)  # (B, H, L, d)
         K = self.k_proj(x).view(B, L, H, d).transpose(1, 2)
         V = self.v_proj(x).view(B, L, H, d).transpose(1, 2)
-        print("2")
+        print("ajay 2")
  
         # Scaling factors s_i (positive via exp)
         s = torch.exp(self.log_s)  # (H,)
@@ -75,13 +78,13 @@ class RiemannFormerAttention(nn.Module):
         if positions is None:
             positions = torch.arange(L, device=x.device)
 
-        print("3")
+        print("ajay 3")
 
         exp_mX = []
         for pos in positions:
             exp_mX.append(matrix_exp(pos * self.X))  # (H, d, d)
         exp_mX = torch.stack(exp_mX, dim=0)  # (L, H, d, d)
-        print("4")
+        print("ajay 4")
 
         # Construct T_i = s_i^{-1/2} exp(iX)
         scale = s.view(H, 1, 1, 1).rsqrt()  # (H,1,1,1)
@@ -93,7 +96,7 @@ class RiemannFormerAttention(nn.Module):
 
         # Inner product in reference space
         attn_scores = torch.einsum('bhid,bhjd->bhij', Q_ref, K_ref) / (d ** 0.5)
-        print("5")
+        print("ajay 5")
 
         # Optional locality focusing
         if self.locality_focusing and positions is not None:
@@ -105,7 +108,7 @@ class RiemannFormerAttention(nn.Module):
 
         # Attention weights
         attn = F.softmax(attn_scores, dim=-1)
-        print("6")
+        print("ajay 6")
 
         # Weighted sum of values
         out = torch.einsum('bhij,bhjd->bhid', attn, V)
