@@ -71,12 +71,8 @@ class HierarchicalReasoningModel_ACTV1Block(nn.Module):
         # )
         self.self_attn = RiemannFormerAttention(
             dim=config.hidden_size,
-            #hidden_size=config.hidden_size,
-            head_dim=config.hidden_size // config.num_heads,
             num_heads=config.num_heads,
-            num_key_value_heads=config.num_heads,
-            locality_focusing=True,
-            causal=False
+            locality_focusing=True
         )
         self.mlp = SwiGLU(
             hidden_size=config.hidden_size,
