@@ -229,8 +229,10 @@ def train_batch(config: PretrainConfig, train_state: TrainState, batch: Any, glo
         with torch.device("cuda"):
             train_state.carry = train_state.model.initial_carry(batch)  # type: ignore
 
+    print("train_batch forward start")
     # Forward
     train_state.carry, loss, metrics, _, _ = train_state.model(carry=train_state.carry, batch=batch, return_keys=[])
+    print("train_batch forward stop")
 
     ((1 / global_batch_size) * loss).backward()
 
