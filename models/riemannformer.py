@@ -12,8 +12,19 @@ def make_skew_symmetric(A: torch.Tensor) -> torch.Tensor:
     """
     return A - A.transpose(-1, -2)
 
+#cayley_exp - ajay
+def cayley_exp(X: torch.Tensor) -> torch.Tensor:
+    """
+    Cayley transform approximation of exp(X).
+    X: (..., d, d) skew-symmetric
+    Returns: (..., d, d) orthogonal matrix
+    """
+    d = X.size(-1)
+    I = torch.eye(d, device=X.device, dtype=X.dtype).expand_as(X)
+    return torch.linalg.solve(I - 0.5 * X, I + 0.5 * X)
+
 #faster matrix_exp - ajay
-def matrix_exp(X: torch.Tensor, positions: torch.Tensor) -> torch.Tensor:
+def fast_matrix_exp(X: torch.Tensor, positions: torch.Tensor) -> torch.Tensor:
     
     # Batched matrix exponential for all positions × heads.
     # X: (H, d, d)
@@ -103,8 +114,23 @@ class RiemannFormerAttention(nn.Module):
         # for pos in positions:
         #     exp_mX.append(matrix_exp(pos * self.X))  # (H, d, d)
         # exp_mX = torch.stack(exp_mX, dim=0)  # (L, H, d, d)
+        
         #faster matrix_exp call - ajay
-        exp_mX = matrix_exp(self.X, positions)  # (L, H, d, d)
+        #exp_mX = fast_matrix_exp(self.X, positions)  # (L, H, d, d)
+
+        #cayley_exp call - ajay
+        # positions: (L,)
+        # self.X: (H, d, d)
+        
+        L = positions.size(0)
+        H, d, _ = self.X.shape
+        
+        # Scale X by positions: (L, H, d, d)
+        scaled_X = positions[:, None, None, None] * self.X[None, :, :, :]
+        
+        # Apply Cayley transform in batch
+        exp_mX = cayley_exp(scaled_X)  # (L, H, d, d)
+
         print("ajay 4")
 
         # Construct T_i = s_i^{-1/2} exp(iX)
