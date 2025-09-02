@@ -435,7 +435,9 @@ def launch(hydra_config: DictConfig):
 
         ############ Train Iter
         train_state.model.train()
+        print("About to start iterating over train_loader")
         for set_name, batch, global_batch_size in train_loader:
+            print("Got batch:", set_name, batch.keys())
             metrics = train_batch(config, train_state, batch, global_batch_size, rank=RANK, world_size=WORLD_SIZE)
 
             if RANK == 0 and metrics is not None:
@@ -443,6 +445,7 @@ def launch(hydra_config: DictConfig):
                 progress_bar.update(train_state.step - progress_bar.n)  # type: ignore
 
         ############ Evaluation
+        print("Evaluation")
         train_state.model.eval()
         metrics = evaluate(config, train_state, eval_loader, eval_metadata, rank=RANK, world_size=WORLD_SIZE)
 
