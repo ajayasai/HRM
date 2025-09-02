@@ -12,18 +12,37 @@ def make_skew_symmetric(A: torch.Tensor) -> torch.Tensor:
     """
     return A - A.transpose(-1, -2)
 
-def matrix_exp(X: torch.Tensor, steps: int = 20) -> torch.Tensor:
-    """
-    Compute matrix exponential via a truncated Taylor series.
-    exp(X) = sum_{k=0}^∞ X^k / k!
-    """
-    out = torch.eye(X.size(-1), device=X.device).unsqueeze(0).expand(X.size(0), -1, -1).clone()
-    term = torch.eye(X.size(-1), device=X.device).unsqueeze(0).expand(X.size(0), -1, -1).clone()
-    factorial = 1.0
-    for k in range(1, steps):
-        term = term @ X / k
-        out = out + term
-    return out
+#faster matrix_exp - ajay
+def matrix_exp(X: torch.Tensor, positions: torch.Tensor) -> torch.Tensor:
+    
+    # Batched matrix exponential for all positions × heads.
+    # X: (H, d, d)
+    # positions: (L,)
+    # Returns: (L, H, d, d)
+    
+    H, d, _ = X.shape
+    L = positions.size(0)
+
+    # Scale X by positions
+    scaled_X = positions[:, None, None, None] * X[None, :, :, :]   # (L, H, d, d)
+
+    # Batch compute matrix exp on GPU
+    exp_mX = torch.matrix_exp(scaled_X.reshape(-1, d, d))          # (L*H, d, d)
+
+    return exp_mX.view(L, H, d, d).to(X.device)
+
+# def matrix_exp(X: torch.Tensor, steps: int = 20) -> torch.Tensor:
+#     """
+#     Compute matrix exponential via a truncated Taylor series.
+#     exp(X) = sum_{k=0}^∞ X^k / k!
+#     """
+#     out = torch.eye(X.size(-1), device=X.device).unsqueeze(0).expand(X.size(0), -1, -1).clone()
+#     term = torch.eye(X.size(-1), device=X.device).unsqueeze(0).expand(X.size(0), -1, -1).clone()
+#     factorial = 1.0
+#     for k in range(1, steps):
+#         term = term @ X / k
+#         out = out + term
+#     return out
 
 # =============================
 # RiemannFormer Attention Core
