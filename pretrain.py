@@ -109,7 +109,7 @@ def create_dataloader(config: PretrainConfig, split: str, rank: int, world_size:
         num_workers=0,
         prefetch_factor=None,
 
-        pin_memory=True,
+        pin_memory=False,
         persistent_workers=False
     )
     return dataloader, dataset.metadata
@@ -441,7 +441,7 @@ def launch(hydra_config: DictConfig):
             metrics = train_batch(config, train_state, batch, global_batch_size, rank=RANK, world_size=WORLD_SIZE)
 
             if RANK == 0 and metrics is not None:
-                wandb.log(metrics, step=train_state.step)
+                #wandb.log(metrics, step=train_state.step)
                 progress_bar.update(train_state.step - progress_bar.n)  # type: ignore
 
         ############ Evaluation
