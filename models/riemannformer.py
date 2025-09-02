@@ -99,10 +99,12 @@ class RiemannFormerAttention(nn.Module):
 
         print("ajay 3")
 
-        exp_mX = []
-        for pos in positions:
-            exp_mX.append(matrix_exp(pos * self.X))  # (H, d, d)
-        exp_mX = torch.stack(exp_mX, dim=0)  # (L, H, d, d)
+        # exp_mX = []
+        # for pos in positions:
+        #     exp_mX.append(matrix_exp(pos * self.X))  # (H, d, d)
+        # exp_mX = torch.stack(exp_mX, dim=0)  # (L, H, d, d)
+        #faster matrix_exp call - ajay
+        exp_mX = matrix_exp(self.X, positions)  # (L, H, d, d)
         print("ajay 4")
 
         # Construct T_i = s_i^{-1/2} exp(iX)
