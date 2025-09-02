@@ -136,14 +136,16 @@ class RiemannFormerAttention(nn.Module):
         # Construct T_i = s_i^{-1/2} exp(iX)
         scale = s.view(H, 1, 1, 1).rsqrt()  # (H,1,1,1)
         T = scale * exp_mX.transpose(0, 1)  # (H, L, d, d)
+        print("ajay 5")
 
         # Map queries & keys into reference space: T_i^{-1} q_i
         Q_ref = torch.einsum('hlij,bhlj->bhli', T.inverse(), Q)
         K_ref = torch.einsum('hlij,bhlj->bhli', T.inverse(), K)
+        print("ajay 6")
 
         # Inner product in reference space
         attn_scores = torch.einsum('bhid,bhjd->bhij', Q_ref, K_ref) / (d ** 0.5)
-        print("ajay 5")
+        print("ajay 7")
 
         # Optional locality focusing
         if self.locality_focusing and positions is not None:
@@ -155,7 +157,7 @@ class RiemannFormerAttention(nn.Module):
 
         # Attention weights
         attn = F.softmax(attn_scores, dim=-1)
-        print("ajay 6")
+        print("ajay 8")
 
         # Weighted sum of values
         out = torch.einsum('bhij,bhjd->bhid', attn, V)
