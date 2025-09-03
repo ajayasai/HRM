@@ -42,6 +42,16 @@ def fast_matrix_exp(X: torch.Tensor, positions: torch.Tensor) -> torch.Tensor:
 
     return exp_mX.view(L, H, d, d).to(X.device)
 
+def cayley_exp_batch(X: torch.Tensor, chunk_size: int = 256) -> torch.Tensor:
+    """
+    Batched Cayley transform to reduce GPU memory usage.
+    X: (L*H, d, d)
+    """
+    outs = []
+    for i in range(0, X.size(0), chunk_size):
+        outs.append(cayley_exp(X[i:i+chunk_size]))
+    return torch.cat(outs, dim=0)
+
 # def matrix_exp(X: torch.Tensor, steps: int = 20) -> torch.Tensor:
 #     """
 #     Compute matrix exponential via a truncated Taylor series.
@@ -124,12 +134,16 @@ class RiemannFormerAttention(nn.Module):
         
         L = positions.size(0)
         H, d, _ = self.X.shape
+
+        scaled_X = positions[:, None, None, None] * self.X[None, :, :, :]   # (L,H,d,d)
+        scaled_X = scaled_X.reshape(-1, d, d)                               # (L*H, d, d)
+        exp_mX = cayley_exp_batch(scaled_X, chunk_size=64).view(L, H, d, d)
+
+        # # Scale X by positions: (L, H, d, d)
+        # scaled_X = positions[:, None, None, None] * self.X[None, :, :, :]
         
-        # Scale X by positions: (L, H, d, d)
-        scaled_X = positions[:, None, None, None] * self.X[None, :, :, :]
-        
-        # Apply Cayley transform in batch
-        exp_mX = cayley_exp(scaled_X)  # (L, H, d, d)
+        # # Apply Cayley transform in batch
+        # exp_mX = cayley_exp(scaled_X)  # (L, H, d, d)
 
         print("ajay 4")
 
