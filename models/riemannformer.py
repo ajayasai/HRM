@@ -136,11 +136,43 @@ class RiemannFormerAttention(nn.Module):
         # Construct T_i = s_i^{-1/2} exp(iX)
         scale = s.view(H, 1, 1, 1).rsqrt()  # (H,1,1,1)
         T = scale * exp_mX.transpose(0, 1)  # (H, L, d, d)
+        
         print("ajay 5")
 
         # Map queries & keys into reference space: T_i^{-1} q_i
-        Q_ref = torch.einsum('hlij,bhlj->bhli', T.inverse(), Q)
-        K_ref = torch.einsum('hlij,bhlj->bhli', T.inverse(), K)
+        # Construct T_i = s_i^{-1/2} exp(iX)
+        # Since T is orthogonal (Cayley/skew exp), T^{-1} = T^T
+        T_T = T.transpose(-1, -2)            # (H, L, d, d)
+        
+        # Prepare empty output tensors
+        Q_ref = torch.empty_like(Q)
+        K_ref = torch.empty_like(K)
+        
+        # 🔹 Chunk over sequence length to save memory
+        chunk_size = 32  # tune this for your GPU (16/32/64 usually works)
+        
+        for start in range(0, L, chunk_size):
+            end = min(start + chunk_size, L)
+        
+            # Slice T and Q/K for this chunk
+            T_chunk = T_T[:, start:end]      # (H, chunk, d, d)
+            Q_chunk = Q[:, :, start:end, :]  # (B,H,chunk,d)
+            K_chunk = K[:, :, start:end, :]
+        
+            # Reshape for batched matmul
+            Q_flat = Q_chunk.reshape(B*H* (end-start), d, 1)
+            K_flat = K_chunk.reshape(B*H* (end-start), d, 1)
+            T_flat = T_chunk.unsqueeze(0).expand(B, -1, -1, -1, -1) \
+                                  .reshape(B*H*(end-start), d, d)
+        
+            # Multiply
+            Q_out = torch.bmm(T_flat, Q_flat).view(B, H, end-start, d)
+            K_out = torch.bmm(T_flat, K_flat).view(B, H, end-start, d)
+        
+            # Store results
+            Q_ref[:,:,start:end,:] = Q_out
+            K_ref[:,:,start:end,:] = K_out
+
         print("ajay 6")
 
         # Inner product in reference space
