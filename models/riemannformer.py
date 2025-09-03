@@ -158,42 +158,46 @@ class RiemannFormerAttention(nn.Module):
         # Since T is orthogonal (Cayley/skew exp), T^{-1} = T^T
         T_T = T.transpose(-1, -2)            # (H, L, d, d)
         
-        # Prepare empty output tensors
         Q_ref = torch.empty_like(Q)
         K_ref = torch.empty_like(K)
         
-        # 🔹 Chunk over sequence length to save memory
-        chunk_size = 32  # tune this for your GPU (16/32/64 usually works)
+        chunk_size = 16  # tune if needed
 
         print("ajay 6")
         
         for start in range(0, L, chunk_size):
             end = min(start + chunk_size, L)
+            chunk_len = end - start
         
-            # Slice T and Q/K for this chunk
-            T_chunk = T_T[:, start:end]      # (H, chunk, d, d)
-            Q_chunk = Q[:, :, start:end, :]  # (B,H,chunk,d)
+            # T for this chunk: (H, chunk, d, d)
+            T_chunk = T_T[:, start:end]
+        
+            # Q/K slices: (B, H, chunk, d)
+            Q_chunk = Q[:, :, start:end, :]
             K_chunk = K[:, :, start:end, :]
-        
-            # Reshape for batched matmul
-            Q_flat = Q_chunk.reshape(B*H* (end-start), d, 1)
-            K_flat = K_chunk.reshape(B*H* (end-start), d, 1)
-            T_flat = T_chunk.unsqueeze(0).expand(B, -1, -1, -1, -1) \
-                                  .reshape(B*H*(end-start), d, d)
-        
+
             print("ajay 7")
-            
-            # Multiply
-            Q_out = torch.bmm(T_flat, Q_flat).view(B, H, end-start, d)
-            K_out = torch.bmm(T_flat, K_flat).view(B, H, end-start, d)
+        
+            # Transpose T to align dims for bmm
+            # reshape to (H*chunk, d, d)
+            T_flat = T_chunk.reshape(H*chunk_len, d, d)
+        
+            # Reshape Q/K to (B, H*chunk, d, 1)
+            Q_flat = Q_chunk.reshape(B, H*chunk_len, d, 1)
+            K_flat = K_chunk.reshape(B, H*chunk_len, d, 1)
 
             print("ajay 8")
-            
-            # Store results
-            Q_ref[:,:,start:end,:] = Q_out
-            K_ref[:,:,start:end,:] = K_out
-
-            print("ajay 9")
+        
+            # Do per-batch matmul WITHOUT expanding T
+            Q_out = torch.matmul(T_flat.unsqueeze(0), Q_flat).squeeze(-1)  # (B, H*chunk, d)
+            K_out = torch.matmul(T_flat.unsqueeze(0), K_flat).squeeze(-1)
+        
+            # Reshape back
+            Q_out = Q_out.view(B, H, chunk_len, d)
+            K_out = K_out.view(B, H, chunk_len, d)
+        
+            Q_ref[:, :, start:end, :] = Q_out
+            K_ref[:, :, start:end, :] = K_out
 
         print("ajay 10")
 
