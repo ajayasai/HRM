@@ -104,13 +104,13 @@ class RiemannFormerAttention(nn.Module):
         
         B, L, D = x.shape
         H, d = self.num_heads, self.head_dim
-        print("ajay 1")
+        
         with torch.autocast("cuda", dtype=torch.float16):
             # Q, K, V projections
             Q = self.q_proj(x).view(B, L, H, d).transpose(1, 2)  # (B, H, L, d)
             K = self.k_proj(x).view(B, L, H, d).transpose(1, 2)
             V = self.v_proj(x).view(B, L, H, d).transpose(1, 2)
-            print("ajay 2")
+           
      
             # Scaling factors s_i (positive via exp)
             s = torch.exp(self.log_s)  # (H,)
@@ -118,8 +118,6 @@ class RiemannFormerAttention(nn.Module):
             # Compute rotation matrices exp(iX)
             if positions is None:
                 positions = torch.arange(L, device=x.device)
-    
-            print("ajay 3")
     
             # exp_mX = []
             # for pos in positions:
@@ -146,13 +144,9 @@ class RiemannFormerAttention(nn.Module):
             # # Apply Cayley transform in batch
             # exp_mX = cayley_exp(scaled_X)  # (L, H, d, d)
     
-            print("ajay 4")
-    
             # Construct T_i = s_i^{-1/2} exp(iX)
             scale = s.view(H, 1, 1, 1).rsqrt()  # (H,1,1,1)
             T = scale * exp_mX.transpose(0, 1)  # (H, L, d, d)
-            
-            print("ajay 5")
     
             # Map queries & keys into reference space: T_i^{-1} q_i
             # Construct T_i = s_i^{-1/2} exp(iX)
@@ -176,13 +170,13 @@ class RiemannFormerAttention(nn.Module):
                     Q_b = Q[b, :, start:end, :].reshape(H*chunk_len, d, 1)  # (H*chunk, d,1)
                     K_b = K[b, :, start:end, :].reshape(H*chunk_len, d, 1)
     
-                    print("ajay 6")
+                    
             
                     # Matmul: much smaller (H*chunk, d, d) × (H*chunk, d, 1)
                     Q_out = torch.bmm(T_chunk, Q_b).view(H, chunk_len, d)
                     K_out = torch.bmm(T_chunk, K_b).view(H, chunk_len, d)
     
-                    print("ajay 7")
+    
             
                     Q_ref[b, :, start:end, :] = Q_out
                     K_ref[b, :, start:end, :] = K_out
@@ -195,7 +189,7 @@ class RiemannFormerAttention(nn.Module):
             #ajay
             attn_scores = torch.zeros(B, H, L, L, device=Q_ref.device, dtype=Q_ref.dtype)
 
-            chunk_size = 16  # tune this
+            chunk_size = 4  # tune this
             
             for i in range(0, L, chunk_size):
                 i_end = min(i+chunk_size, L)
