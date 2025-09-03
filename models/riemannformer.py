@@ -181,11 +181,11 @@ class RiemannFormerAttention(nn.Module):
 
             print("ajay 9")
 
-        print("ajay 10)
+        print("ajay 10")
 
         # Inner product in reference space
         attn_scores = torch.einsum('bhid,bhjd->bhij', Q_ref, K_ref) / (d ** 0.5)
-        print("ajay 7")
+        print("ajay 11")
 
         # Optional locality focusing
         if self.locality_focusing and positions is not None:
@@ -195,9 +195,11 @@ class RiemannFormerAttention(nn.Module):
             locality = torch.exp(- (diff ** 2) / (2 * sigma ** 2))  # Gaussian
             attn_scores = attn_scores + torch.log(locality + 1e-6)  # biasing
 
+        print("ajay 12")
+        
         # Attention weights
         attn = F.softmax(attn_scores, dim=-1)
-        print("ajay 8")
+        print("ajay 13")
 
         # Weighted sum of values
         out = torch.einsum('bhij,bhjd->bhid', attn, V)
