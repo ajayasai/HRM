@@ -150,6 +150,8 @@ class RiemannFormerAttention(nn.Module):
         
         # 🔹 Chunk over sequence length to save memory
         chunk_size = 32  # tune this for your GPU (16/32/64 usually works)
+
+        print("ajay 6")
         
         for start in range(0, L, chunk_size):
             end = min(start + chunk_size, L)
@@ -165,15 +167,21 @@ class RiemannFormerAttention(nn.Module):
             T_flat = T_chunk.unsqueeze(0).expand(B, -1, -1, -1, -1) \
                                   .reshape(B*H*(end-start), d, d)
         
+            print("ajay 7")
+            
             # Multiply
             Q_out = torch.bmm(T_flat, Q_flat).view(B, H, end-start, d)
             K_out = torch.bmm(T_flat, K_flat).view(B, H, end-start, d)
-        
+
+            print("ajay 8")
+            
             # Store results
             Q_ref[:,:,start:end,:] = Q_out
             K_ref[:,:,start:end,:] = K_out
 
-        print("ajay 6")
+            print("ajay 9")
+
+        print("ajay 10)
 
         # Inner product in reference space
         attn_scores = torch.einsum('bhid,bhjd->bhij', Q_ref, K_ref) / (d ** 0.5)
