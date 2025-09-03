@@ -191,19 +191,23 @@ class RiemannFormerAttention(nn.Module):
             # Do per-batch matmul WITHOUT expanding T
             Q_out = torch.matmul(T_flat.unsqueeze(0), Q_flat).squeeze(-1)  # (B, H*chunk, d)
             K_out = torch.matmul(T_flat.unsqueeze(0), K_flat).squeeze(-1)
-        
+
+            print("ajay 9")
+            
             # Reshape back
             Q_out = Q_out.view(B, H, chunk_len, d)
             K_out = K_out.view(B, H, chunk_len, d)
+
+            print("ajay 10")
         
             Q_ref[:, :, start:end, :] = Q_out
             K_ref[:, :, start:end, :] = K_out
 
-        print("ajay 10")
+        print("ajay 11")
 
         # Inner product in reference space
         attn_scores = torch.einsum('bhid,bhjd->bhij', Q_ref, K_ref) / (d ** 0.5)
-        print("ajay 11")
+        print("ajay 12")
 
         # Optional locality focusing
         if self.locality_focusing and positions is not None:
