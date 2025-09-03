@@ -105,128 +105,112 @@ class RiemannFormerAttention(nn.Module):
         B, L, D = x.shape
         H, d = self.num_heads, self.head_dim
         print("ajay 1")
-        # Q, K, V projections
-        Q = self.q_proj(x).view(B, L, H, d).transpose(1, 2)  # (B, H, L, d)
-        K = self.k_proj(x).view(B, L, H, d).transpose(1, 2)
-        V = self.v_proj(x).view(B, L, H, d).transpose(1, 2)
-        print("ajay 2")
- 
-        # Scaling factors s_i (positive via exp)
-        s = torch.exp(self.log_s)  # (H,)
-
-        # Compute rotation matrices exp(iX)
-        if positions is None:
-            positions = torch.arange(L, device=x.device)
-
-        print("ajay 3")
-
-        # exp_mX = []
-        # for pos in positions:
-        #     exp_mX.append(matrix_exp(pos * self.X))  # (H, d, d)
-        # exp_mX = torch.stack(exp_mX, dim=0)  # (L, H, d, d)
-        
-        #faster matrix_exp call - ajay
-        #exp_mX = fast_matrix_exp(self.X, positions)  # (L, H, d, d)
-
-        #cayley_exp call - ajay
-        # positions: (L,)
-        # self.X: (H, d, d)
-        
-        L = positions.size(0)
-        H, d, _ = self.X.shape
-
-        scaled_X = positions[:, None, None, None] * self.X[None, :, :, :]   # (L,H,d,d)
-        scaled_X = scaled_X.reshape(-1, d, d)                               # (L*H, d, d)
-        exp_mX = cayley_exp_batch(scaled_X, chunk_size=64).view(L, H, d, d)
-
-        # # Scale X by positions: (L, H, d, d)
-        # scaled_X = positions[:, None, None, None] * self.X[None, :, :, :]
-        
-        # # Apply Cayley transform in batch
-        # exp_mX = cayley_exp(scaled_X)  # (L, H, d, d)
-
-        print("ajay 4")
-
-        # Construct T_i = s_i^{-1/2} exp(iX)
-        scale = s.view(H, 1, 1, 1).rsqrt()  # (H,1,1,1)
-        T = scale * exp_mX.transpose(0, 1)  # (H, L, d, d)
-        
-        print("ajay 5")
-
-        # Map queries & keys into reference space: T_i^{-1} q_i
-        # Construct T_i = s_i^{-1/2} exp(iX)
-        # Since T is orthogonal (Cayley/skew exp), T^{-1} = T^T
-        T_T = T.transpose(-1, -2)            # (H, L, d, d)
-        
-        Q_ref = torch.empty_like(Q)
-        K_ref = torch.empty_like(K)
-        
-        chunk_size = 16  # tune if needed
-
-        print("ajay 6")
-        
-        for start in range(0, L, chunk_size):
-            end = min(start + chunk_size, L)
-            chunk_len = end - start
-        
-            # T for this chunk: (H, chunk, d, d)
-            T_chunk = T_T[:, start:end]
-        
-            # Q/K slices: (B, H, chunk, d)
-            Q_chunk = Q[:, :, start:end, :]
-            K_chunk = K[:, :, start:end, :]
-
-            print("ajay 7")
-        
-            # Transpose T to align dims for bmm
-            # reshape to (H*chunk, d, d)
-            T_flat = T_chunk.reshape(H*chunk_len, d, d)
-        
-            # Reshape Q/K to (B, H*chunk, d, 1)
-            Q_flat = Q_chunk.reshape(B, H*chunk_len, d, 1)
-            K_flat = K_chunk.reshape(B, H*chunk_len, d, 1)
-
-            print("ajay 8")
-        
-            # Do per-batch matmul WITHOUT expanding T
-            Q_out = torch.matmul(T_flat.unsqueeze(0), Q_flat).squeeze(-1)  # (B, H*chunk, d)
-            K_out = torch.matmul(T_flat.unsqueeze(0), K_flat).squeeze(-1)
-
-            print("ajay 9")
+        with torch.autocast("cuda", dtype=torch.float16):
+            # Q, K, V projections
+            Q = self.q_proj(x).view(B, L, H, d).transpose(1, 2)  # (B, H, L, d)
+            K = self.k_proj(x).view(B, L, H, d).transpose(1, 2)
+            V = self.v_proj(x).view(B, L, H, d).transpose(1, 2)
+            print("ajay 2")
+     
+            # Scaling factors s_i (positive via exp)
+            s = torch.exp(self.log_s)  # (H,)
+    
+            # Compute rotation matrices exp(iX)
+            if positions is None:
+                positions = torch.arange(L, device=x.device)
+    
+            print("ajay 3")
+    
+            # exp_mX = []
+            # for pos in positions:
+            #     exp_mX.append(matrix_exp(pos * self.X))  # (H, d, d)
+            # exp_mX = torch.stack(exp_mX, dim=0)  # (L, H, d, d)
             
-            # Reshape back
-            Q_out = Q_out.view(B, H, chunk_len, d)
-            K_out = K_out.view(B, H, chunk_len, d)
-
-            print("ajay 10")
-        
-            Q_ref[:, :, start:end, :] = Q_out
-            K_ref[:, :, start:end, :] = K_out
-
-        print("ajay 11")
-
-        # Inner product in reference space
-        attn_scores = torch.einsum('bhid,bhjd->bhij', Q_ref, K_ref) / (d ** 0.5)
-        print("ajay 12")
-
-        # Optional locality focusing
-        if self.locality_focusing and positions is not None:
-            pos = positions.float()
-            diff = pos.unsqueeze(0) - pos.unsqueeze(1)  # (L, L)
-            sigma = torch.exp(self.log_sigma)
-            locality = torch.exp(- (diff ** 2) / (2 * sigma ** 2))  # Gaussian
-            attn_scores = attn_scores + torch.log(locality + 1e-6)  # biasing
-
-        print("ajay 12")
-        
-        # Attention weights
-        attn = F.softmax(attn_scores, dim=-1)
-        print("ajay 13")
-
-        # Weighted sum of values
-        out = torch.einsum('bhij,bhjd->bhid', attn, V)
-        out = out.transpose(1, 2).reshape(B, L, D)
-        return self.out_proj(out)
+            #faster matrix_exp call - ajay
+            #exp_mX = fast_matrix_exp(self.X, positions)  # (L, H, d, d)
+    
+            #cayley_exp call - ajay
+            # positions: (L,)
+            # self.X: (H, d, d)
+            
+            L = positions.size(0)
+            H, d, _ = self.X.shape
+    
+            scaled_X = positions[:, None, None, None] * self.X[None, :, :, :]   # (L,H,d,d)
+            scaled_X = scaled_X.reshape(-1, d, d)                               # (L*H, d, d)
+            exp_mX = cayley_exp_batch(scaled_X, chunk_size=64).view(L, H, d, d)
+    
+            # # Scale X by positions: (L, H, d, d)
+            # scaled_X = positions[:, None, None, None] * self.X[None, :, :, :]
+            
+            # # Apply Cayley transform in batch
+            # exp_mX = cayley_exp(scaled_X)  # (L, H, d, d)
+    
+            print("ajay 4")
+    
+            # Construct T_i = s_i^{-1/2} exp(iX)
+            scale = s.view(H, 1, 1, 1).rsqrt()  # (H,1,1,1)
+            T = scale * exp_mX.transpose(0, 1)  # (H, L, d, d)
+            
+            print("ajay 5")
+    
+            # Map queries & keys into reference space: T_i^{-1} q_i
+            # Construct T_i = s_i^{-1/2} exp(iX)
+            # Since T is orthogonal (Cayley/skew exp), T^{-1} = T^T
+            T_T = T.transpose(-1, -2)            # (H, L, d, d)
+            
+            Q_ref = torch.empty_like(Q)
+            K_ref = torch.empty_like(K)
+            
+            chunk_size = 8  # tune down if needed
+            
+            for start in range(0, L, chunk_size):
+                end = min(start + chunk_size, L)
+                chunk_len = end - start
+            
+                # T for this chunk: (H, chunk, d, d)
+                T_chunk = T_T[:, start:end].reshape(H*chunk_len, d, d)
+            
+                for b in range(B):
+                    # Q/K slices for this batch: (H, chunk, d)
+                    Q_b = Q[b, :, start:end, :].reshape(H*chunk_len, d, 1)  # (H*chunk, d,1)
+                    K_b = K[b, :, start:end, :].reshape(H*chunk_len, d, 1)
+    
+                    print("ajay 6")
+            
+                    # Matmul: much smaller (H*chunk, d, d) × (H*chunk, d, 1)
+                    Q_out = torch.bmm(T_chunk, Q_b).view(H, chunk_len, d)
+                    K_out = torch.bmm(T_chunk, K_b).view(H, chunk_len, d)
+    
+                    print("ajay 7")
+            
+                    Q_ref[b, :, start:end, :] = Q_out
+                    K_ref[b, :, start:end, :] = K_out
+    
+            print("ajay 11")
+    
+            # Inner product in reference space
+            attn_scores = torch.einsum('bhid,bhjd->bhij', Q_ref, K_ref) / (d ** 0.5)
+            print("ajay 12")
+    
+            # Optional locality focusing
+            if self.locality_focusing and positions is not None:
+                pos = positions.float()
+                diff = pos.unsqueeze(0) - pos.unsqueeze(1)  # (L, L)
+                sigma = torch.exp(self.log_sigma)
+                locality = torch.exp(- (diff ** 2) / (2 * sigma ** 2))  # Gaussian
+                attn_scores = attn_scores + torch.log(locality + 1e-6)  # biasing
+    
+            print("ajay 12")
+            
+            # Attention weights
+            attn = F.softmax(attn_scores, dim=-1)
+            print("ajay 13")
+    
+            # Weighted sum of values
+            out = torch.einsum('bhij,bhjd->bhid', attn, V)
+            out = out.transpose(1, 2).reshape(B, L, D)
+            return self.out_proj(out)
 
 # =============================
 # Mini RiemannFormer Transformer Block
