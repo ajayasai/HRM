@@ -196,24 +196,24 @@ class RiemannFormerAttention(nn.Module):
         print("ajay 11")
 
         # Inner product in reference space
-        attn_scores = torch.einsum('bhid,bhjd->bhij', Q_ref, K_ref) / (d ** 0.5)
+        #attn_scores = torch.einsum('bhid,bhjd->bhij', Q_ref, K_ref) / (d ** 0.5)
 
         #ajay
-        # attn_scores = torch.zeros(B, H, L, L, device=Q_ref.device, dtype=Q_ref.dtype)
+        attn_scores = torch.zeros(B, H, L, L, device=Q_ref.device, dtype=Q_ref.dtype)
 
-        # chunk_size = 4  # tune this
+        chunk_size = 16  # tune this
         
-        # for i in range(0, L, chunk_size):
-        #     i_end = min(i+chunk_size, L)
-        #     Q_block = Q_ref[:, :, i:i_end, :]   # (B,H,chunk,d)
+        for i in range(0, L, chunk_size):
+            i_end = min(i+chunk_size, L)
+            Q_block = Q_ref[:, :, i:i_end, :]   # (B,H,chunk,d)
         
-        #     for j in range(0, L, chunk_size):
-        #         j_end = min(j+chunk_size, L)
-        #         K_block = K_ref[:, :, j:j_end, :]  # (B,H,chunk,d)
+            for j in range(0, L, chunk_size):
+                j_end = min(j+chunk_size, L)
+                K_block = K_ref[:, :, j:j_end, :]  # (B,H,chunk,d)
         
-        #         # Local block attention
-        #         scores_block = torch.einsum("bhid,bhjd->bhij", Q_block, K_block)
-        #         attn_scores[:, :, i:i_end, j:j_end] = scores_block / (d**0.5)
+                # Local block attention
+                scores_block = torch.einsum("bhid,bhjd->bhij", Q_block, K_block)
+                attn_scores[:, :, i:i_end, j:j_end] = scores_block / (d**0.5)
 
         print("ajay 12")
 
