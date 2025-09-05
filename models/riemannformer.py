@@ -165,11 +165,14 @@ class RiemannFormerAttention(nn.Module):
 
         print("RiemannFormerAttention forward mid 3")
         
-        chunk_size = 8  # tune down if needed
+        chunk_size = 16  # tune down if needed
         
         for start in range(0, L, chunk_size):
             end = min(start + chunk_size, L)
             chunk_len = end - start
+
+            print("RiemannFormerAttention forward chunk start")
+            print(start)
         
             # T for this chunk: (H, chunk, d, d)
             T_chunk = T_T[:, start:end].reshape(H*chunk_len, d, d)
