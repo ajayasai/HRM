@@ -93,6 +93,7 @@ class HierarchicalReasoningModel_ACTV1Block(nn.Module):
             print("HierarchicalReasoningModel_ACTV1Block forward start")
             positions = torch.arange(hidden_states.size(1), device=hidden_states.device)
             attn_out = self.self_attn(x=hidden_states, positions=positions)
+            print("HierarchicalReasoningModel_ACTV1Block forward start attention done")
             # Post Norm
             # Self Attention
             # Replace in patch
