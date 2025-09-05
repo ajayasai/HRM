@@ -72,7 +72,7 @@ def cayley_exp_batch(X: torch.Tensor, chunk_size: int = 256) -> torch.Tensor:
 class RiemannFormerAttention(nn.Module):
     def __init__(self, dim, num_heads=8, locality_focusing=True):
         super().__init__()
-        print("RiemannFormerAttention init start")
+        #print("RiemannFormerAttention init start")
         self.dim = dim
         self.num_heads = num_heads
         self.head_dim = dim // num_heads
@@ -94,14 +94,14 @@ class RiemannFormerAttention(nn.Module):
         self.locality_focusing = locality_focusing
         if locality_focusing:
             self.log_sigma = nn.Parameter(torch.zeros(1))  # learnable bandwidth
-        print("RiemannFormerAttention init end")
+        #print("RiemannFormerAttention init end")
 
     def forward(self, x, positions=None):
         """
         x: (B, L, D)
         positions: (L,) token positions (ints), optional
         """
-        print("RiemannFormerAttention forward start")
+        #print("RiemannFormerAttention forward start")
         #cast input to float32 - ajay
         x = x.to(self.q_proj.weight.dtype)
         
@@ -118,7 +118,7 @@ class RiemannFormerAttention(nn.Module):
         # Scaling factors s_i (positive via exp)
         s = torch.exp(self.log_s)  # (H,)
 
-        print("RiemannFormerAttention forward mid 1")
+        #print("RiemannFormerAttention forward mid 1")
 
         # Compute rotation matrices exp(iX)
         if positions is None:
@@ -143,7 +143,7 @@ class RiemannFormerAttention(nn.Module):
         scaled_X = scaled_X.reshape(-1, d, d)                               # (L*H, d, d)
         exp_mX = cayley_exp_batch(scaled_X, chunk_size=64).view(L, H, d, d)
 
-        print("RiemannFormerAttention forward mid 2")
+        #print("RiemannFormerAttention forward mid 2")
 
         # # Scale X by positions: (L, H, d, d)
         # scaled_X = positions[:, None, None, None] * self.X[None, :, :, :]
@@ -163,7 +163,7 @@ class RiemannFormerAttention(nn.Module):
         Q_ref = torch.empty_like(Q)
         K_ref = torch.empty_like(K)
 
-        print("RiemannFormerAttention forward mid 3")
+        #print("RiemannFormerAttention forward mid 3")
         
         chunk_size = 16  # tune down if needed
         
@@ -171,8 +171,8 @@ class RiemannFormerAttention(nn.Module):
             end = min(start + chunk_size, L)
             chunk_len = end - start
 
-            print("RiemannFormerAttention forward chunk start")
-            print(start)
+            #print("RiemannFormerAttention forward chunk start")
+            #print(start)
         
             # T for this chunk: (H, chunk, d, d)
             T_chunk = T_T[:, start:end].reshape(H*chunk_len, d, d)
@@ -193,7 +193,7 @@ class RiemannFormerAttention(nn.Module):
                 Q_ref[b, :, start:end, :] = Q_out
                 K_ref[b, :, start:end, :] = K_out
 
-        print("ajay 11")
+        #print("ajay 11")
 
         # Inner product in reference space
         #attn_scores = torch.einsum('bhid,bhjd->bhij', Q_ref, K_ref) / (d ** 0.5)
@@ -223,7 +223,7 @@ class RiemannFormerAttention(nn.Module):
                 # Reshape back and insert: (B,H,chunk_i,chunk_j)
                 attn_scores[:, :, i:i_end, j:j_end] = scores_block.view(B, H, i_end - i, j_end - j)
 
-        print("ajay 12")
+        #print("ajay 12")
 
         # Optional locality focusing
         if self.locality_focusing and positions is not None:
@@ -233,15 +233,15 @@ class RiemannFormerAttention(nn.Module):
             locality = torch.exp(- (diff ** 2) / (2 * sigma ** 2))  # Gaussian
             attn_scores = attn_scores + torch.log(locality + 1e-6)  # biasing
 
-        print("ajay 13")
+        #print("ajay 13")
         
         # Attention weights
         attn = F.softmax(attn_scores, dim=-1)
-        print("ajay 14")
+        #print("ajay 14")
 
         # Weighted sum of values
         out = torch.einsum('bhij,bhjd->bhid', attn, V)
-        print("ajay 15")
+        #print("ajay 15")
         out = out.transpose(1, 2).reshape(B, L, D)
         return self.out_proj(out)
 
