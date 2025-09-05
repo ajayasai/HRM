@@ -72,6 +72,7 @@ def cayley_exp_batch(X: torch.Tensor, chunk_size: int = 256) -> torch.Tensor:
 class RiemannFormerAttention(nn.Module):
     def __init__(self, dim, num_heads=8, locality_focusing=True):
         super().__init__()
+        print("RiemannFormerAttention init start")
         self.dim = dim
         self.num_heads = num_heads
         self.head_dim = dim // num_heads
@@ -93,12 +94,14 @@ class RiemannFormerAttention(nn.Module):
         self.locality_focusing = locality_focusing
         if locality_focusing:
             self.log_sigma = nn.Parameter(torch.zeros(1))  # learnable bandwidth
+        print("RiemannFormerAttention init end")
 
     def forward(self, x, positions=None):
         """
         x: (B, L, D)
         positions: (L,) token positions (ints), optional
         """
+        print("RiemannFormerAttention forward start")
         #cast input to float32 - ajay
         x = x.to(self.q_proj.weight.dtype)
         
@@ -114,6 +117,8 @@ class RiemannFormerAttention(nn.Module):
  
         # Scaling factors s_i (positive via exp)
         s = torch.exp(self.log_s)  # (H,)
+
+        print("RiemannFormerAttention forward mid 1")
 
         # Compute rotation matrices exp(iX)
         if positions is None:
@@ -138,6 +143,8 @@ class RiemannFormerAttention(nn.Module):
         scaled_X = scaled_X.reshape(-1, d, d)                               # (L*H, d, d)
         exp_mX = cayley_exp_batch(scaled_X, chunk_size=64).view(L, H, d, d)
 
+        print("RiemannFormerAttention forward mid 2")
+
         # # Scale X by positions: (L, H, d, d)
         # scaled_X = positions[:, None, None, None] * self.X[None, :, :, :]
         
@@ -155,6 +162,8 @@ class RiemannFormerAttention(nn.Module):
         
         Q_ref = torch.empty_like(Q)
         K_ref = torch.empty_like(K)
+
+        print("RiemannFormerAttention forward mid 3")
         
         chunk_size = 8  # tune down if needed
         
