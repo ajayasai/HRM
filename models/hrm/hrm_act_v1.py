@@ -90,6 +90,7 @@ class HierarchicalReasoningModel_ACTV1Block(nn.Module):
     #     return hidden_states
 
     def forward(self, cos_sin: CosSin, hidden_states: torch.Tensor) -> torch.Tensor:
+            print("HierarchicalReasoningModel_ACTV1Block forward start")
             positions = torch.arange(hidden_states.size(1), device=hidden_states.device)
             attn_out = self.self_attn(x=hidden_states, positions=positions)
             # Post Norm
