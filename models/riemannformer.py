@@ -201,19 +201,27 @@ class RiemannFormerAttention(nn.Module):
         #ajay
         attn_scores = torch.zeros(B, H, L, L, device=Q_ref.device, dtype=Q_ref.dtype)
 
-        chunk_size = 8  # tune this
+        chunk_size = 16  # tune based on GPU memory
         
         for i in range(0, L, chunk_size):
             i_end = min(i+chunk_size, L)
             Q_block = Q_ref[:, :, i:i_end, :]   # (B,H,chunk,d)
         
+            # Reshape Q for bmm: (B*H, chunk, d)
+            Q_flat = Q_block.reshape(B*H, i_end - i, d)
+        
             for j in range(0, L, chunk_size):
                 j_end = min(j+chunk_size, L)
                 K_block = K_ref[:, :, j:j_end, :]  # (B,H,chunk,d)
         
-                # Local block attention
-                scores_block = torch.einsum("bhid,bhjd->bhij", Q_block, K_block)
-                attn_scores[:, :, i:i_end, j:j_end] = scores_block / (d**0.5)
+                # Reshape K for bmm: (B*H, d, chunk)
+                K_flat = K_block.reshape(B*H, d, j_end - j)
+        
+                # Compute block: (B*H, chunk_i, chunk_j)
+                scores_block = torch.bmm(Q_flat, K_flat) / (d ** 0.5)
+        
+                # Reshape back and insert: (B,H,chunk_i,chunk_j)
+                attn_scores[:, :, i:i_end, j:j_end] = scores_block.view(B, H, i_end - i, j_end - j)
 
         print("ajay 12")
 
@@ -233,6 +241,7 @@ class RiemannFormerAttention(nn.Module):
 
         # Weighted sum of values
         out = torch.einsum('bhij,bhjd->bhid', attn, V)
+        print("ajay 15")
         out = out.transpose(1, 2).reshape(B, L, D)
         return self.out_proj(out)
 
