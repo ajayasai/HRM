@@ -79,6 +79,7 @@ class HierarchicalReasoningModel_ACTV1Block(nn.Module):
             expansion=config.expansion,
         )
         self.norm_eps = config.rms_norm_eps
+        print("HierarchicalReasoningModel_ACTV1Block init")
 
     # def forward(self, cos_sin: CosSin, hidden_states: torch.Tensor) -> torch.Tensor:
     #     # Post Norm
@@ -103,6 +104,7 @@ class HierarchicalReasoningModel_ACTV1Block(nn.Module):
                 hidden_states + self.mlp(hidden_states),
                 variance_epsilon=self.norm_eps
             )
+            print("HierarchicalReasoningModel_ACTV1Block forward")
 
             return hidden_states
 
