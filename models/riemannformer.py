@@ -201,7 +201,7 @@ class RiemannFormerAttention(nn.Module):
         #ajay
         attn_scores = torch.zeros(B, H, L, L, device=Q_ref.device, dtype=Q_ref.dtype)
 
-        chunk_size = 16  # tune this
+        chunk_size = 8  # tune this
         
         for i in range(0, L, chunk_size):
             i_end = min(i+chunk_size, L)
