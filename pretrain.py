@@ -441,7 +441,8 @@ def launch(hydra_config: DictConfig):
         for set_name, batch, global_batch_size in train_loader:
             print("Got batch:", set_name, batch.keys())
             metrics = train_batch(config, train_state, batch, global_batch_size, rank=RANK, world_size=WORLD_SIZE)
-
+            print("train batch done")
+         
             if RANK == 0 and metrics is not None:
                 #wandb.log(metrics, step=train_state.step)
                 progress_bar.update(train_state.step - progress_bar.n)  # type: ignore
