@@ -166,6 +166,10 @@ def load_puzzles_arcagi(results: dict, dataset_path: str, config: DataProcessCon
                     
             # Shuffle puzzles
             np.random.shuffle(puzzles)
+
+            #ajay
+            if config.limit_puzzles is not None:
+                puzzles = puzzles[:config.limit_puzzles]
             
             # Assign by fraction
             for idx, (default_name, puzzle) in enumerate(puzzles):
@@ -181,9 +185,6 @@ def load_puzzles_arcagi(results: dict, dataset_path: str, config: DataProcessCon
                 convert_single_arc_puzzle(results, default_name, puzzle, config.num_aug, {"train": train_examples_dest, "test": test_examples_dest})
                 total_puzzles += 1
 
-    #ajay
-    if config.limit_puzzles is not None:
-        puzzles = puzzles[:config.limit_puzzles]
 
     print (f"[{dataset_path}] total puzzles: {total_puzzles}")
 
