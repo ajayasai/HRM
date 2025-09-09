@@ -29,7 +29,7 @@ class DataProcessConfig(BaseModel):
     num_aug: int = 0
 
     #ajay
-    limit_puzzles: Optional[int] = None  # <--- NEW
+    limitpuzzles: Optional[int] = None  # <--- NEW
     
     
 ARCMaxGridSize = 30
@@ -182,8 +182,8 @@ def load_puzzles_arcagi(results: dict, dataset_path: str, config: DataProcessCon
                 total_puzzles += 1
 
     #ajay
-    if config.limit_puzzles is not None:
-        puzzles = puzzles[:config.limit_puzzles]
+    if config.limitpuzzles is not None:
+        puzzles = puzzles[:config.limitpuzzles]
 
     print (f"[{dataset_path}] total puzzles: {total_puzzles}")
 
