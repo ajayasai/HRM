@@ -253,6 +253,8 @@ def train_batch(config: PretrainConfig, train_state: TrainState, batch: Any, glo
         optim.step()
         optim.zero_grad()
 
+    print("optimizer done")
+
     # Reduce metrics
     if len(metrics):
         assert not any(v.requires_grad for v in metrics.values())
@@ -262,6 +264,8 @@ def train_batch(config: PretrainConfig, train_state: TrainState, batch: Any, glo
         metric_values = torch.stack([metrics[k] for k in metric_keys])
         if world_size > 1:
             dist.reduce(metric_values, dst=0)
+
+        print("len metrics")
 
         if rank == 0:
             metric_values = metric_values.cpu().numpy()
