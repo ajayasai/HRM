@@ -18,15 +18,18 @@ cli = ArgParser()
 
 class DataProcessConfig(BaseModel):
     # ARC-1
-    dataset_dirs: List[str] = ["dataset/raw-data/ARC-AGI/data", "dataset/raw-data/ConceptARC/corpus"]
-    output_dir: str = "data/arc-aug-1000"
+    # dataset_dirs: List[str] = ["dataset/raw-data/ARC-AGI/data", "dataset/raw-data/ConceptARC/corpus"]
+    # output_dir: str = "data/arc-aug-1000"
     
     # ARC-2
-    # dataset_dirs: List[str] = ["dataset/raw-data/ARC-AGI-2/data"]
-    # output_dir: str = "data/arc-2-aug-1000"
+    dataset_dirs: List[str] = ["dataset/raw-data/ARC-AGI-2/data"]
+    output_dir: str = "data/arc-2-aug-1000"
 
     seed: int = 42
     num_aug: int = 1000
+
+    #ajay
+    limit_puzzles: Optional[int] = None  # <--- NEW
     
     
 ARCMaxGridSize = 30
@@ -177,6 +180,10 @@ def load_puzzles_arcagi(results: dict, dataset_path: str, config: DataProcessCon
                 
                 convert_single_arc_puzzle(results, default_name, puzzle, config.num_aug, {"train": train_examples_dest, "test": test_examples_dest})
                 total_puzzles += 1
+
+    #ajay
+    if config.limit_puzzles is not None:
+        puzzles = puzzles[:config.limit_puzzles]
 
     print (f"[{dataset_path}] total puzzles: {total_puzzles}")
 
