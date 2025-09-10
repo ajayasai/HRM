@@ -231,10 +231,10 @@ def train_batch(config: PretrainConfig, train_state: TrainState, batch: Any, glo
         with torch.device("cuda"):
             train_state.carry = train_state.model.initial_carry(batch)  # type: ignore
 
-    print("train_batch forward start")
+    #print("train_batch forward start")
     # Forward
     train_state.carry, loss, metrics, _, _ = train_state.model(carry=train_state.carry, batch=batch, return_keys=[])
-    print("train_batch forward stop")
+    #print("train_batch forward stop")
 
     ((1 / global_batch_size) * loss).backward()
     print("backward done")
@@ -245,7 +245,7 @@ def train_batch(config: PretrainConfig, train_state: TrainState, batch: Any, glo
             if param.grad is not None:
                 dist.all_reduce(param.grad)
 
-    print("optimizer start")
+    #print("optimizer start")
     # Apply optimizer
     lr_this_step = None    
     for optim, base_lr in zip(train_state.optimizers, train_state.optimizer_lrs):
@@ -269,7 +269,7 @@ def train_batch(config: PretrainConfig, train_state: TrainState, batch: Any, glo
         if world_size > 1:
             dist.reduce(metric_values, dst=0)
 
-        print("len metrics")
+        #print("len metrics")
 
         if rank == 0:
             metric_values = metric_values.cpu().numpy()
