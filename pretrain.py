@@ -22,6 +22,8 @@ from puzzle_dataset import PuzzleDataset, PuzzleDatasetConfig, PuzzleDatasetMeta
 from utils.functions import load_model_class, get_model_source_path
 from models.sparse_embedding import CastedSparseEmbeddingSignSGD_Distributed
 
+import torch.optim as optim
+
 
 class LossConfig(pydantic.BaseModel):
     model_config = pydantic.ConfigDict(extra='allow')
@@ -153,9 +155,9 @@ def create_model(config: PretrainConfig, train_metadata: PuzzleDatasetMetadata, 
 
             world_size=world_size
         ),
-        AdamATan2(
+        #AdamATan2(
+        optim.AdamW(
             model.parameters(),
-
             lr=0,  # Needs to be set by scheduler
             weight_decay=config.weight_decay,
             betas=(config.beta1, config.beta2)
