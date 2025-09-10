@@ -235,13 +235,15 @@ def train_batch(config: PretrainConfig, train_state: TrainState, batch: Any, glo
     print("train_batch forward stop")
 
     ((1 / global_batch_size) * loss).backward()
+    print("backward done")
 
     # Allreduce
     if world_size > 1:
         for param in train_state.model.parameters():
             if param.grad is not None:
                 dist.all_reduce(param.grad)
-            
+
+    print("optimizer start")
     # Apply optimizer
     lr_this_step = None    
     for optim, base_lr in zip(train_state.optimizers, train_state.optimizer_lrs):
