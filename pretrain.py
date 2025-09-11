@@ -464,6 +464,14 @@ def launch(hydra_config: DictConfig):
 
         if RANK == 0 and metrics is not None:
             wandb.log(metrics, step=train_state.step)
+
+            # Print nicely to stdout
+            print("\n=== Evaluation Metrics at step", train_state.step, "===")
+            for set_name, set_metrics in metrics.items():
+                print(f"[{set_name}]")
+                for k, v in set_metrics.items():
+                    print(f"  {k}: {v:.6f}")
+            print("====================================\n")
             
         ############ Checkpointing
         if RANK == 0 and (config.checkpoint_every_eval or (_iter_id == total_iters - 1)):
