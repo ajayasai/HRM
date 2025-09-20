@@ -237,7 +237,7 @@ def train_batch(config: PretrainConfig, train_state: TrainState, batch: Any, glo
     #print("train_batch forward stop")
 
     ((1 / global_batch_size) * loss).backward()
-    print("backward done")
+    #print("backward done")
 
     # Allreduce
     if world_size > 1:
@@ -257,7 +257,7 @@ def train_batch(config: PretrainConfig, train_state: TrainState, batch: Any, glo
         optim.step()
         optim.zero_grad()
 
-    print("optimizer done")
+    #print("optimizer done")
 
     # Reduce metrics
     if len(metrics):
@@ -447,11 +447,11 @@ def launch(hydra_config: DictConfig):
 
         ############ Train Iter
         train_state.model.train()
-        print("About to start iterating over train_loader")
+        #print("About to start iterating over train_loader")
         for set_name, batch, global_batch_size in train_loader:
-            print("Got batch:", set_name, batch.keys())
+            #print("Got batch:", set_name, batch.keys())
             metrics = train_batch(config, train_state, batch, global_batch_size, rank=RANK, world_size=WORLD_SIZE)
-            print("train batch done")
+            #print("train batch done")
          
             if RANK == 0 and metrics is not None:
                 #wandb.log(metrics, step=train_state.step)
