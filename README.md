@@ -17,14 +17,7 @@ Manifold Hypothesis
 
 Instead of representing tokens in a flat space, RiemannFormer assumes they lie on a Riemannian manifold—a curved geometric space with varying metric tensors that define distances and angles locally.
 
-Each token embedding is viewed as residing at a point p on this manifold 𝑀 and the associated query and key vectors lie in the tangent space <pre>
-T
-p
-i
-&nbsp;
-&nbsp;
-M
-</pre>
+Each token embedding is viewed as residing at a point p on this manifold 𝑀 and the associated query and key vectors lie in the tangent space TpM
 
 	​
 
